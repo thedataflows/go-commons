@@ -16,9 +16,12 @@ type RegexFinder struct {
 	Pattern *regexp.Regexp
 }
 
-// TextFinder holds a text to be searched in files.
-type TextFinder struct {
-	Text []byte
+// Grep for the pattern in a file and returns the results.
+func (f *RegexFinder) Grep(filePath string) *Results {
+	resultsChan := make(chan *Results)
+	go f.ProcessFile(context.Background(), filePath, resultsChan)
+
+	return <-resultsChan
 }
 
 // ProcessFile searches for the pattern in a file and sends the results to resultsChan.
@@ -63,6 +66,19 @@ func (f *RegexFinder) ProcessFile(ctx context.Context, filePath string, resultsC
 
 	// Send the results to the resultsChan.
 	resultsChan <- &results
+}
+
+// TextFinder holds a text to be searched in files.
+type TextFinder struct {
+	Text []byte
+}
+
+// Grep for text in a file and returns the results.
+func (f *TextFinder) Grep(filePath string) *Results {
+	resultsChan := make(chan *Results)
+	go f.ProcessFile(context.Background(), filePath, resultsChan)
+
+	return <-resultsChan
 }
 
 // ProcessFile searches for the pattern in a file and sends the results to resultsChan.
