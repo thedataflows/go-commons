@@ -1,201 +1,119 @@
-package grep
+package search
 
 import (
 	"bufio"
 	"bytes"
-	"fmt"
+	"context"
+	"io"
 	"os"
-	"path/filepath"
 	"regexp"
-	"sync"
+
+	"github.com/thedataflows/go-commons/pkg/file"
 )
 
-type SearchDebug struct {
-	Workers int
+// RegexFinder holds a compiled regular expression pattern.
+type RegexFinder struct {
+	Pattern *regexp.Regexp
 }
 
-const (
-	LITERAL = iota
-	REGEX
-)
-
-type SearchOptions struct {
-	Kind   int
-	Lines  bool
-	Regex  *regexp.Regexp
-	Finder *stringFinder
+// TextFinder holds a text to be searched in files.
+type TextFinder struct {
+	Text []byte
 }
 
-type SearchResult struct {
-	Path  string
-	Match string
-	Line  int
-	Error error
-}
+// ProcessFile searches for the pattern in a file and sends the results to resultsChan.
+func (f *RegexFinder) ProcessFile(ctx context.Context, filePath string, resultsChan chan<- *Results) {
+	results := Results{}
 
-// type SearchJob struct {
-// 	Path    string
-// 	Options *SearchOptions
-// }
-
-const MAX_WORKERS = 128
-
-var (
-	done = make(chan struct{})
-	sema = make(chan struct{}, MAX_WORKERS) // concurrency-limiting counting semaphore
-)
-
-func cancelled() bool {
-	select {
-	case <-done:
-		return true
-	default:
-		return false
+	fileHandle, err := os.Open(filePath)
+	if err != nil {
+		results.Results = append(results.Results, NewResult("", 0, filePath, err, false))
+		resultsChan <- &results
+		return
 	}
-}
+	defer fileHandle.Close()
 
-func Search(paths []string, opts *SearchOptions, debug *SearchDebug) {
-	// Cancel when input is detected.
-	go func() {
-		os.Stdin.Read(make([]byte, 1)) // read a single byte
-		close(done)
-	}()
+	isBinary, err := file.BinaryFile(fileHandle)
+	// Go to the start of the file, ignore errors
+	_, err = fileHandle.Seek(0, io.SeekStart)
 
-	var wg sync.WaitGroup
-	searchJobs := make(chan *[]SearchResult)
-	// for w := 0; w < debug.Workers; w++ {
-	// 	go searchWorker(searchJobs, &wg)
-	// }
-	for _, path := range paths {
-		dirTraversal(path, opts, searchJobs, &wg)
-	}
-	go func() {
-		wg.Wait()
-		close(searchJobs)
-	}()
+	// Read the file line by line using a scanner.
+	scanner := bufio.NewScanner(fileHandle)
+	lineNum := 0
+	for scanner.Scan() {
+		line := scanner.Bytes()
+		lineNum++
 
-loop:
-	//!+3
-	for {
 		select {
-		case <-done:
-			// Drain other channels to allow existing goroutines to finish.
-			for range searchJobs {
-				// Do nothing.
-			}
+		case <-ctx.Done():
 			return
-		case size, ok := <-fileSizes:
-			// ...
-			//!-3
-			if !ok {
-				break loop // fileSizes was closed
+		default:
+			// If the pattern is found in the line, create a Result and append it to the results.
+			if f.Pattern.Find(line) != nil {
+				result := NewResult(string(line), lineNum, filePath, nil, isBinary)
+				results.Results = append(results.Results, result)
 			}
-			nfiles++
-			nbytes += size
-		case <-tick:
-			printDiskUsage(nfiles, nbytes)
 		}
 	}
-	printDiskUsage(nfiles, nbytes) // final totals
+
+	// Handle any errors that occurred while scanning the file.
+	if err := scanner.Err(); err != nil {
+		results.Results = append(results.Results, NewResult("", 0, filePath, err, false))
+	}
+
+	// Send the results to the resultsChan.
+	resultsChan <- &results
 }
 
-func dirTraversal(path string, opts *SearchOptions, searchJobs chan *[]SearchResult, wg *sync.WaitGroup) {
-	select {
-	case sema <- struct{}{}: // acquire token
-	case <-done:
-		return // cancelled
-	}
-	defer func() { <-sema }() // release token
+// ProcessFile searches for the pattern in a file and sends the results to resultsChan.
+func (f *TextFinder) ProcessFile(ctx context.Context, filePath string, resultsChan chan<- *Results) {
+	results := Results{}
 
-	sr :=
-
-	info, err := os.Lstat(path)
+	fileHandle, err := os.Open(filePath)
 	if err != nil {
-		return fmt.Errorf("couldn't lstat path %s: %s", path, err)
+		results.Results = append(results.Results, NewResult("", 0, filePath, err, false))
+		resultsChan <- &results
+		return
 	}
+	defer fileHandle.Close()
 
-	if !info.IsDir() {
-		wg.Add(1)
-		searchJobs <- &SearchJob{
-			path,
-			opts,
-			&SearchResult{},
-		}
-		return nil
-	}
+	isBinary, err := file.BinaryFile(fileHandle)
+	// Go to the start of the file, ignore errors
+	_, err = fileHandle.Seek(0, io.SeekStart)
 
-	f, err := os.Open(path)
-	if err != nil {
-		return fmt.Errorf("couldn't open path %s: %s", path, err)
-	}
-	dirNames, err := f.Readdirnames(-1)
-	if err != nil {
-		return fmt.Errorf("couldn't read dir names for path %s: %s", path, err)
-	}
+	// Read the file line by line using a scanner.
+	scanner := bufio.NewScanner(fileHandle)
+	lineNum := 0
+	finder := MakeStringFinder(f.Text)
+	for scanner.Scan() {
+		line := scanner.Bytes()
+		lineNum++
 
-	for _, deeperPath := range dirNames {
-		if err := dirTraversal(filepath.Join(path, deeperPath), opts, searchJobs, wg); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func searchWorker(jobs chan *SearchJob, wg *sync.WaitGroup) error {
-	for job := range jobs {
-		defer wg.Done()
-		f, err := os.Open(job.Path)
-		if err != nil {
-			return fmt.Errorf("couldn't open path %s: %s", job.Path, err)
-		}
-
-		scanner := bufio.NewScanner(f)
-		isBinary := false
-
-		line := 1
-		for scanner.Scan() {
-			text := scanner.Bytes()
-
-			// Check the first buffer for NUL
-			if line == 1 {
-				isBinary = bytes.IndexByte(text, 0) != -1
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			// If the pattern is found in the line, create a Result and append it to the results.
+			if finder.Next(line) != -1 {
+				result := NewResult(string(line), lineNum, filePath, nil, isBinary)
+				results.Results = append(results.Results, result)
 			}
-
-			if job.Options.Kind == LITERAL {
-				if job.Options.Finder.next(text) != -1 {
-					if isBinary {
-						fmt.Printf("Binary file %s matches\n", job.Path)
-						break
-					} else if job.Options.Lines {
-						fmt.Printf("%s:%d %s\n", job.Path, line, text)
-					} else {
-						fmt.Printf("%s %s\n", job.Path, text)
-					}
-				}
-			} else if job.Options.Kind == REGEX {
-				if job.Options.Regex.Find(scanner.Bytes()) != nil {
-					if isBinary {
-						fmt.Printf("Binary file %s matches\n", job.Path)
-						break
-					} else if job.Options.Lines {
-						fmt.Printf("%s:%d %s\n", job.Path, line, text)
-					} else {
-						fmt.Printf("%s %s\n", job.Path, text)
-					}
-				}
-			}
-			line++
 		}
-
 	}
-	return nil
+
+	// Handle any errors that occurred while scanning the file.
+	if err := scanner.Err(); err != nil {
+		results.Results = append(results.Results, NewResult("", 0, filePath, err, false))
+	}
+
+	// Send the results to the resultsChan.
+	resultsChan <- &results
 }
 
 // Below, is Go's internal Boyer-Moore string search algorithm, it has been
 // modified to use []byte instead of string to reduce allocations.
+// https://go.googlesource.com/go/+/go1.19.8/src/strings/search.go
 
-// https://go.googlesource.com/go/+/go1.18.1/src/strings/search.go
 // Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -295,7 +213,7 @@ func longestCommonSuffix(a, b []byte) (i int) {
 
 // next returns the index in text of the first occurrence of the pattern. If
 // the pattern is not found, it returns -1.
-func (f *stringFinder) next(text []byte) int {
+func (f *stringFinder) Next(text []byte) int {
 	i := len(f.pattern) - 1
 	for i < len(text) {
 		// Compare backwards from the end until the first unmatching character.
