@@ -44,3 +44,9 @@ func AppHome(programPath string) (string, error) {
 	}
 	return programHome, nil
 }
+
+// WorkingDirectory returns the current working directory or empty on error
+func WorkingDirectory() string {
+	dir, _ := os.Getwd()
+	return dir
+}
