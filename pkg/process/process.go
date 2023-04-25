@@ -8,6 +8,12 @@ import (
 	"github.com/thedataflows/go-commons/pkg/stringutil"
 )
 
+// CurrentProcessDirectory returns the absolute directory of the current process
+func CurrentProcessDirectory() string {
+	exePath, _ := CurrentProcessPath()
+	return filepath.Dir(exePath)
+}
+
 // CurrentProcessPathStr returns the absolute path of the current running process or empty string
 func CurrentProcessPathStr() string {
 	exePath, _ := CurrentProcessPath()
