@@ -8,6 +8,12 @@ import (
 	"github.com/thedataflows/go-commons/pkg/stringutil"
 )
 
+// CurrentProcessPathStr returns the absolute path of the current running process or empty string
+func CurrentProcessPathStr() string {
+	exePath, _ := CurrentProcessPath()
+	return exePath
+}
+
 // CurrentProcessPath returns the absolute path of the current running process
 func CurrentProcessPath() (string, error) {
 	exePath, errOsExePath := os.Executable()
