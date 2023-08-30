@@ -2,7 +2,7 @@
 
 MAKEFLAGS += --silent
 
-GOLANGCI_LINT_VERSION = v1.51.2
+GOLANGCI_LINT_VERSION = v1.54.2
 
 all: help
 
