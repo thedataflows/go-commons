@@ -37,8 +37,13 @@ func (f *RegexFinder) ProcessFile(ctx context.Context, filePath string, resultsC
 	defer fileHandle.Close()
 
 	isBinary, err := file.BinaryFile(fileHandle)
+	if err != nil {
+		results.Results = append(results.Results, NewResult("", 0, filePath, err, false))
+		resultsChan <- &results
+		return
+	}
 	// Go to the start of the file, ignore errors
-	_, err = fileHandle.Seek(0, io.SeekStart)
+	_, _ = fileHandle.Seek(0, io.SeekStart)
 
 	// Read the file line by line using a scanner.
 	scanner := bufio.NewScanner(fileHandle)
@@ -94,13 +99,18 @@ func (f *TextFinder) ProcessFile(ctx context.Context, filePath string, resultsCh
 	defer fileHandle.Close()
 
 	isBinary, err := file.BinaryFile(fileHandle)
+	if err != nil {
+		results.Results = append(results.Results, NewResult("", 0, filePath, err, false))
+		resultsChan <- &results
+		return
+	}
 	// Go to the start of the file, ignore errors
-	_, err = fileHandle.Seek(0, io.SeekStart)
+	_, _ = fileHandle.Seek(0, io.SeekStart)
 
 	// Read the file line by line using a scanner.
 	scanner := bufio.NewScanner(fileHandle)
 	lineNum := 0
-	finder := MakeStringFinder(f.Text)
+	finder := makeStringFinder(f.Text)
 	for scanner.Scan() {
 		line := scanner.Bytes()
 		lineNum++
@@ -175,7 +185,7 @@ type stringFinder struct {
 	goodSuffixSkip []int
 }
 
-func MakeStringFinder(pattern []byte) *stringFinder {
+func makeStringFinder(pattern []byte) *stringFinder {
 	f := &stringFinder{
 		pattern:        pattern,
 		goodSuffixSkip: make([]int, len(pattern)),

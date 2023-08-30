@@ -54,13 +54,13 @@ func (f *JustLister) ProcessFile(ctx context.Context, filePath string, resultsCh
 	)
 	if f.OpenFile {
 		fileHandle, err = os.Open(filePath)
-		defer fileHandle.Close()
-	} else {
-		err = nil
+		if err == nil {
+			defer fileHandle.Close()
+		}
 	}
+
 	results.Results = append(results.Results, NewResult("", 0, filePath, err, false))
 	resultsChan <- &results
-	return
 }
 
 // Find walks through the directory, calling ProcessFile for each file.
@@ -144,7 +144,7 @@ func Find(ctx context.Context, startDir string, finder Finder, maxWorkers int) *
 
 // RunFind is a sample main function that runs the find command.
 // If maxWorkers is less than 1, it will use twice the number of CPUs.
-func RunFind(pattern *string, startDir *string, maxWorkers *int) error {
+func RunFind(pattern *string, startDir *string, maxWorkers *int) []error {
 	if *maxWorkers < 1 {
 		*maxWorkers = runtime.NumCPU() * 2
 	}
@@ -152,7 +152,7 @@ func RunFind(pattern *string, startDir *string, maxWorkers *int) error {
 	fmt.Fprintf(os.Stderr, "Using %v workers\n", *maxWorkers)
 
 	if *pattern == "" {
-		return fmt.Errorf("pattern is required")
+		return []error{fmt.Errorf("pattern is required")}
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -168,11 +168,13 @@ func RunFind(pattern *string, startDir *string, maxWorkers *int) error {
 	// 	OpenFile: false,
 	// }
 
+	errors := []error{}
+
 	results := Find(ctx, *startDir, finder, *maxWorkers)
 
 	for _, result := range results.Results {
 		if result.Err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", result.Err)
+			errors = append(errors, fmt.Errorf("error: %v", result.Err))
 		} else {
 			line := "*binary matches*"
 			if !result.IsBinary {
@@ -181,4 +183,5 @@ func RunFind(pattern *string, startDir *string, maxWorkers *int) error {
 			fmt.Printf("%v:%v:%v\n", result.FilePath, result.LineNum, line)
 		}
 	}
+	return errors
 }
