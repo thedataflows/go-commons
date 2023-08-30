@@ -146,11 +146,11 @@ func CheckRequiredFlags(cmd *cobra.Command, requiredFlags []string) {
 		}
 	}
 	if len(neededFlags) > 0 {
-		fmt.Fprintln(os.Stderr, "Error: required flags are not set:")
+		log.Error("Error: required flags are not set:")
 		for _, f := range neededFlags {
-			fmt.Fprintf(os.Stderr, "  --%s\n", f)
+			log.Errorf("  --%s\n", f)
 		}
-		fmt.Fprintf(os.Stderr, "\n")
+		log.Errorf("\n")
 		_ = cmd.Usage()
 		os.Exit(1)
 	}
