@@ -138,7 +138,7 @@ func setLogging(opts *Opts) {
 }
 
 // CheckRequiredFlags exits with error when one ore more required flags are not set
-func CheckRequiredFlags(cmd *cobra.Command, requiredFlags []string) {
+func CheckRequiredFlags(cmd *cobra.Command, requiredFlags []string, ret int) {
 	neededFlags := make([]string, 0, len(requiredFlags))
 	for _, f := range requiredFlags {
 		if !ViperIsSet(cmd, f) {
@@ -148,11 +148,12 @@ func CheckRequiredFlags(cmd *cobra.Command, requiredFlags []string) {
 	if len(neededFlags) > 0 {
 		log.Error("Error: required flags are not set:")
 		for _, f := range neededFlags {
-			log.Errorf("  --%s\n", f)
+			log.Errorf("  --%s", f)
 		}
-		log.Errorf("\n")
 		_ = cmd.Usage()
-		os.Exit(1)
+		if ret > 0 {
+			os.Exit(ret)
+		}
 	}
 }
 
