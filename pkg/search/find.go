@@ -52,15 +52,20 @@ func (f *JustLister) ProcessFile(ctx context.Context, filePath string, resultsCh
 		err        error
 		fileHandle *os.File
 	)
-	if f.OpenFile {
-		fileHandle, err = os.Open(filePath)
-		if err == nil {
-			defer fileHandle.Close()
+	select {
+	case <-ctx.Done():
+		return
+	default:
+		if f.OpenFile {
+			fileHandle, err = os.Open(filePath)
+			if err == nil {
+				defer fileHandle.Close()
+			}
 		}
-	}
 
-	results.Results = append(results.Results, NewResult("", 0, filePath, err, false))
-	resultsChan <- &results
+		results.Results = append(results.Results, NewResult("", 0, filePath, err, false))
+		resultsChan <- &results
+	}
 }
 
 // Find walks through the directory, calling ProcessFile for each file.
