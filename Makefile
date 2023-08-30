@@ -27,7 +27,7 @@ fmt:
 
 # tidy: Tidy with go mod tidy
 tidy:
-	go mod tidy -compat=1.19
+	go mod tidy
 
 ## pre-commit: Chain lint + test
 pre-commit: test lint
