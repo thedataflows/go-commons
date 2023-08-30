@@ -41,6 +41,9 @@ func BinaryFile(file *os.File) (bool, error) {
 
 		// Go to the start of the file, ignore errors
 		_, err = file.Seek(0, io.SeekStart)
+		if err != nil {
+			return false, err
+		}
 
 		// Read up to 24 bytes
 		fileBytes := make([]byte, 24)
@@ -48,7 +51,8 @@ func BinaryFile(file *os.File) (bool, error) {
 		if err != nil {
 			// Could not read the file
 			return false, err
-		} else if n == 0 {
+		}
+		if n == 0 {
 			// The file is too short, decide it's a text file
 			return false, nil
 		}

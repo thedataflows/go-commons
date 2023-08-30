@@ -144,7 +144,7 @@ func Find(ctx context.Context, startDir string, finder Finder, maxWorkers int) *
 
 // RunFind is a sample main function that runs the find command.
 // If maxWorkers is less than 1, it will use twice the number of CPUs.
-func RunFind(pattern *string, startDir *string, maxWorkers *int) {
+func RunFind(pattern *string, startDir *string, maxWorkers *int) error {
 	if *maxWorkers < 1 {
 		*maxWorkers = runtime.NumCPU() * 2
 	}
@@ -152,8 +152,7 @@ func RunFind(pattern *string, startDir *string, maxWorkers *int) {
 	fmt.Fprintf(os.Stderr, "Using %v workers\n", *maxWorkers)
 
 	if *pattern == "" {
-		fmt.Println("pattern is required")
-		return
+		return fmt.Errorf("pattern is required")
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
