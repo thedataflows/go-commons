@@ -218,27 +218,62 @@ func ViperBindPersistentPFlag(cmd *cobra.Command, name string) {
 	_ = viper.BindPFlag(PrefixKey(cmd, name), cmd.PersistentFlags().Lookup(name))
 }
 
-// ViperGetString is a convenience wrapper returning string value
+// ViperGetString is a convenience wrapper that returns the value associated with the key as a string.
 func ViperGetString(cmd *cobra.Command, key string) string {
 	return viper.GetViper().GetString(PrefixKey(cmd, key))
 }
 
-// ViperGetInt is a convenience wrapper returning string value
+// ViperGetStringSlice is a convenience wrapper that returns the value associated with the key as a slice of strings.
+func ViperGetStringSlice(cmd *cobra.Command, key string) []string {
+	return viper.GetViper().GetStringSlice(PrefixKey(cmd, key))
+}
+
+// ViperGetStringMap is a convenience wrapper that returns the value associated with the key as a map of interfaces.
+func ViperGetStringMap(cmd *cobra.Command, key string) map[string]interface{} {
+	return viper.GetViper().GetStringMap(PrefixKey(cmd, key))
+}
+
+// ViperGetStringMapString is a convenience wrapper that returns the value associated with the key as a map of strings.
+func ViperGetStringMapString(cmd *cobra.Command, key string) map[string]string {
+	return viper.GetViper().GetStringMapString(PrefixKey(cmd, key))
+}
+
+// ViperGetStringMapStringSlice is a convenience wrapper that returns the value associated with the key as a map to a slice of strings.
+func ViperGetStringMapStringSlice(cmd *cobra.Command, key string) map[string][]string {
+	return viper.GetViper().GetStringMapStringSlice(PrefixKey(cmd, key))
+}
+
+// ViperGetInt is a convenience wrapper that returns the value associated with the key as an integer.
 func ViperGetInt(cmd *cobra.Command, key string) int {
 	return viper.GetViper().GetInt(PrefixKey(cmd, key))
 }
 
-// ViperGetDuration is a convenience wrapper returning duration value
+// ViperGetFloat64 is a convenience wrapper that returns the value associated with the key as a float64.
+func ViperGetFloat64(cmd *cobra.Command, key string) float64 {
+	return viper.GetViper().GetFloat64(PrefixKey(cmd, key))
+}
+
+// ViperGetTime is a convenience wrapper that returns the value associated with the key as time.
+func ViperGetTime(cmd *cobra.Command, key string) time.Time {
+	return viper.GetViper().GetTime(PrefixKey(cmd, key))
+}
+
+// ViperGetDuration is a convenience wrapper that returns the value associated with the key as a duration.
 func ViperGetDuration(cmd *cobra.Command, key string) time.Duration {
 	return viper.GetViper().GetDuration(PrefixKey(cmd, key))
 }
 
-// ViperGetBool is a convenience wrapper returning bool value
+// ViperGetBool is a convenience wrapper that returns the value associated with the key as a boolean.
 func ViperGetBool(cmd *cobra.Command, key string) bool {
 	return viper.GetViper().GetBool(PrefixKey(cmd, key))
 }
 
-// ViperIsSet is a convenience wrapper returning true if a key is set
+// ViperGetSizeInBytes is a convenience wrapper that returns the size of the value associated with the given key
+func ViperGetSizeInBytes(cmd *cobra.Command, key string) uint {
+	return viper.GetViper().GetSizeInBytes(PrefixKey(cmd, key))
+}
+
+// ViperIsSet is a convenience wrapper returning true if a key is set. Case insensitve for keys.
 func ViperIsSet(cmd *cobra.Command, key string) bool {
 	return viper.GetViper().IsSet(PrefixKey(cmd, key))
 }
