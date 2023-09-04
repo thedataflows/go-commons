@@ -41,7 +41,7 @@ func DefaultConfigOpts(opts *Opts) *Opts {
 	// 	opts.ConfigType = "yaml"
 	// }
 	if opts.ConfigName == "" {
-		programPath, err := process.CurrentProcessPath()
+		programPath, err := process.CurrentProcessPathE()
 		if err != nil {
 			log.Fatal(err)
 		}

@@ -27,7 +27,7 @@ func AppendExtension(fileName string) string {
 func AppHome(programPath string) (string, error) {
 	var err error
 	if programPath == "" {
-		programPath, err = process.CurrentProcessPath()
+		programPath, err = process.CurrentProcessPathE()
 		if err != nil {
 			return "", err
 		}

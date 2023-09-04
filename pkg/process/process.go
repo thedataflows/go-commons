@@ -10,18 +10,18 @@ import (
 
 // CurrentProcessDirectory returns the absolute directory of the current process
 func CurrentProcessDirectory() string {
-	exePath, _ := CurrentProcessPath()
+	exePath, _ := CurrentProcessPathE()
 	return filepath.Dir(exePath)
 }
 
-// CurrentProcessPathStr returns the absolute path of the current running process or empty string
-func CurrentProcessPathStr() string {
-	exePath, _ := CurrentProcessPath()
+// CurrentProcessPath returns the absolute path of the current running process or empty string
+func CurrentProcessPath() string {
+	exePath, _ := CurrentProcessPathE()
 	return exePath
 }
 
-// CurrentProcessPath returns the absolute path of the current running process
-func CurrentProcessPath() (string, error) {
+// CurrentProcessPathE returns the absolute path of the current running process or error
+func CurrentProcessPathE() (string, error) {
 	exePath, errOsExePath := os.Executable()
 	if errOsExePath != nil {
 		return "", errOsExePath
