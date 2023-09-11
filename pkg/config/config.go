@@ -19,7 +19,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-type Opts struct {
+type Options struct {
 	EnvPrefix       string
 	ConfigType      string
 	ConfigName      string
@@ -29,62 +29,102 @@ type Opts struct {
 	Flags           *pflag.FlagSet
 }
 
-// DefaultConfigOpts sets default ConfigOpts if uninitialized or fields are empty
-func DefaultConfigOpts(opts *Opts) *Opts {
-	if opts == nil {
-		opts = &Opts{}
+type Option func(*Options)
+
+func WithEnvPrefix(envPrefix string) Option {
+	return func(o *Options) {
+		o.EnvPrefix = envPrefix
 	}
-	if opts.EnvPrefix == "" {
-		opts.EnvPrefix = defaults.ViperEnvPrefix
+}
+
+func WithConfigType(configType string) Option {
+	return func(o *Options) {
+		o.ConfigType = configType
 	}
-	// if opts.ConfigType == "" {
-	// 	opts.ConfigType = "yaml"
-	// }
-	if opts.ConfigName == "" {
-		programPath, err := process.CurrentProcessPathE()
-		if err != nil {
-			log.Fatal(err)
-		}
-		opts.ConfigName = file.TrimExtension(filepath.Base(programPath))
+}
+
+func WithConfigName(configName string) Option {
+	return func(o *Options) {
+		o.ConfigName = configName
 	}
-	if opts.UserConfigPaths == nil || len(opts.UserConfigPaths) == 0 {
-		configPath, err := file.AppHome("")
-		if err != nil {
-			log.Fatal(err)
-		}
-		opts.UserConfigPaths = []string{".", configPath}
+}
+
+func WithUserConfigPaths(userConfigPaths []string) Option {
+	return func(o *Options) {
+		o.UserConfigPaths = userConfigPaths
 	}
-	if opts.LogLevelKey == "" {
-		opts.LogLevelKey = "log-level"
+}
+
+func WithLogLevelKey(logLevelKey string) Option {
+	return func(o *Options) {
+		o.LogLevelKey = logLevelKey
 	}
-	if opts.LogFormatKey == "" {
-		opts.LogFormatKey = "log-format"
+}
+
+func WithLogFormatKey(logFormatKey string) Option {
+	return func(o *Options) {
+		o.LogFormatKey = logFormatKey
 	}
-	if opts.Flags == nil {
-		opts.Flags = pflag.NewFlagSet("root", pflag.ExitOnError)
-		opts.Flags.String(opts.LogLevelKey, log.InfoLevel.String(), fmt.Sprintf("Set log level to one of: '%s'", strings.Join(log.AllLevelsValues, ", ")))
-		opts.Flags.String(opts.LogFormatKey, log.LogFormats[0], fmt.Sprintf("Set log format to one of: '%s'", strings.Join(log.LogFormats, ", ")))
-		opts.Flags.StringSliceVar(
-			&opts.UserConfigPaths, "config", opts.UserConfigPaths, fmt.Sprintf(
-				"Config file(s) or directories. When just dirs, file '%s' with extensions '%s' is looked up. Can be specified multiple times",
-				opts.ConfigName,
-				strings.Join(viper.SupportedExts, ", "),
-			),
-		)
+}
+
+func WithFlags(flags *pflag.FlagSet) Option {
+	return func(o *Options) {
+		o.Flags = flags
+	}
+}
+
+// NewOptions sets default Options overriding with options
+func NewOptions(options ...Option) *Options {
+	opts := Options{
+		EnvPrefix: defaults.ViperEnvPrefix,
+	}
+	opts.ConfigName = file.TrimExtension(filepath.Base(process.CurrentProcessPath()))
+	configPath, err := file.AppHome("")
+	if err != nil {
+		log.Fatal(err)
+	}
+	opts.UserConfigPaths = []string{".", configPath}
+	opts.LogLevelKey = defaults.LogLevelKey
+	opts.LogFormatKey = defaults.LogFormatKey
+
+	opts.Flags = pflag.NewFlagSet("root", pflag.ExitOnError)
+	opts.Flags.String(
+		opts.LogLevelKey,
+		log.InfoLevel.String(),
+		fmt.Sprintf("Set log level to one of: '%s'",
+			strings.Join(log.AllLevelsValues, ", "),
+		),
+	)
+	opts.Flags.String(opts.LogFormatKey, log.LogFormats[0], fmt.Sprintf("Set log format to one of: '%s'", strings.Join(log.LogFormats, ", ")))
+	opts.Flags.StringSliceVar(
+		&opts.UserConfigPaths,
+		"config",
+		opts.UserConfigPaths, fmt.Sprintf(
+			"Config file(s) or directories. When just dirs, file '%s' with extensions '%s' is looked up. Can be specified multiple times",
+			opts.ConfigName,
+			strings.Join(viper.SupportedExts, ", "),
+		),
+	)
+
+	// override defaults with options
+	for _, o := range options {
+		o(&opts)
 	}
 
-	return opts
+	return &opts
 }
 
 // InitConfig reads in config file and ENV variables if set.
-func InitConfig(opts *Opts) {
-	opts = DefaultConfigOpts(opts)
+func (opts *Options) InitConfig() {
+	if opts == nil {
+		opts = NewOptions()
+	}
 
 	viper.SetEnvPrefix(opts.EnvPrefix)
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
 	viper.AutomaticEnv() // read in environment variables that match
 
-	setLogging(opts)
+	opts.setLogging()
 
 	viper.SetConfigType(opts.ConfigType)
 	// Use config file from the flag.
@@ -105,7 +145,7 @@ func InitConfig(opts *Opts) {
 	}
 
 	// a second call is to set again logging if configured in file
-	setLogging(opts)
+	opts.setLogging()
 
 	if log.Logger.GetLevel() == log.TraceLevel {
 		log.Trace("====== begin viper configuration dump ======")
@@ -123,15 +163,23 @@ func InitConfig(opts *Opts) {
 	// viper.WatchConfig()
 }
 
-func setLogging(opts *Opts) {
+func (opts *Options) setLogging() {
 	// Set log format
-	err := log.SetLogFormat(viper.GetString(opts.LogFormatKey))
+	v := viper.GetString(opts.LogFormatKey)
+	if len(v) == 0 {
+		v = log.LogFormats[0]
+	}
+	err := log.SetLogFormat(v)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// Set log level
-	err = log.SetLogLevel(viper.GetString(opts.LogLevelKey))
+	v = viper.GetString(opts.LogLevelKey)
+	if len(v) == 0 {
+		v = log.InfoLevel.String()
+	}
+	err = log.SetLogLevel(v)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -157,6 +205,23 @@ func CheckRequiredFlags(cmd *cobra.Command, requiredFlags []string, ret int) {
 	}
 }
 
+// BuildEnvKey returns a fully constructed environment variable name
+func BuildEnvKey(cmd *cobra.Command, envPrefix string, keyName string) string {
+	if len(envPrefix) == 0 {
+		envPrefix = defaults.ViperEnvPrefix
+	}
+	parentKey := stringutil.ConcatStrings(envPrefix, "_")
+
+	for cmd != nil && cmd != cmd.Root() {
+		parentKey = stringutil.ConcatStrings(cmd.Use, "_", parentKey)
+		cmd = cmd.Parent()
+	}
+	if keyName == "" && parentKey[len(parentKey)-1:] == "_" {
+		return parentKey[:len(parentKey)-1]
+	}
+	return strings.ToUpper(parentKey + keyName)
+}
+
 // PrefixKey prepends current and parent Use to specified key name
 func PrefixKey(cmd *cobra.Command, keyName string) string {
 	parentKey := ""
@@ -171,7 +236,7 @@ func PrefixKey(cmd *cobra.Command, keyName string) string {
 }
 
 // AppendStringArgsf appends viper value to existing args slice with optional formatted output with key and value
-func AppendStringArgsf(cmd *cobra.Command, args []string, key string, format string) []string {
+func AppendStringArgsf(format string, cmd *cobra.Command, args []string, key string) []string {
 	val := ViperGetString(cmd, key)
 	if val != "" {
 		args = append(args, fmt.Sprintf(format, key, val))
@@ -181,7 +246,7 @@ func AppendStringArgsf(cmd *cobra.Command, args []string, key string, format str
 
 // AppendStringArgs appends viper value to existing args slice
 func AppendStringArgs(cmd *cobra.Command, args []string, key string) []string {
-	return AppendStringArgsf(cmd, args, key, "")
+	return AppendStringArgsf("", cmd, args, key)
 }
 
 // AppendSplitArgs appends viper value to existing args slice after splitting them by splitPattern (default regex whitespace)
@@ -273,7 +338,7 @@ func ViperGetSizeInBytes(cmd *cobra.Command, key string) uint {
 	return viper.GetViper().GetSizeInBytes(PrefixKey(cmd, key))
 }
 
-// ViperIsSet is a convenience wrapper returning true if a key is set. Case insensitve for keys.
+// ViperIsSet is a convenience wrapper returning true if a key is set. Case insensitive for keys.
 func ViperIsSet(cmd *cobra.Command, key string) bool {
 	return viper.GetViper().IsSet(PrefixKey(cmd, key))
 }
