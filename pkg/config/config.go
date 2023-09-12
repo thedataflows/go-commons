@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	jww "github.com/spf13/jwalterweatherman"
 	"github.com/thedataflows/go-commons/pkg/defaults"
 	"github.com/thedataflows/go-commons/pkg/file"
 	"github.com/thedataflows/go-commons/pkg/log"
@@ -196,6 +197,27 @@ func (opts *Options) setLogging() error {
 	err = log.SetLogLevel(v)
 	if err != nil {
 		return err
+	}
+	// Enable viper logging
+	switch log.Logger.GetLevel() {
+	case log.InfoLevel:
+		jww.SetLogThreshold(jww.LevelInfo)
+		jww.SetStdoutThreshold(jww.LevelInfo)
+	case log.ErrorLevel:
+		jww.SetLogThreshold(jww.LevelError)
+		jww.SetStdoutThreshold(jww.LevelError)
+	case log.FatalLevel:
+		jww.SetLogThreshold(jww.LevelFatal)
+		jww.SetStdoutThreshold(jww.LevelFatal)
+	case log.DebugLevel:
+		jww.SetLogThreshold(jww.LevelDebug)
+		jww.SetStdoutThreshold(jww.LevelDebug)
+	case log.TraceLevel:
+		jww.SetLogThreshold(jww.LevelTrace)
+		jww.SetStdoutThreshold(jww.LevelTrace)
+	default:
+		jww.SetLogThreshold(jww.LevelWarn)
+		jww.SetStdoutThreshold(jww.LevelWarn)
 	}
 
 	return nil
