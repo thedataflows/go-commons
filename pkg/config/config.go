@@ -215,6 +215,7 @@ func CheckRequiredFlags(cmd *cobra.Command, requiredFlags []string) error {
 		for _, f := range neededFlags {
 			errorMessage = fmt.Sprintf("%s\n  --%s", errorMessage, f)
 		}
+		errorMessage = fmt.Sprintf("%s\n", errorMessage)
 		return fmt.Errorf(errorMessage)
 	}
 
