@@ -192,7 +192,7 @@ func (opts *Options) setLogging() error {
 	// Set log level
 	v = viper.GetString(opts.LogLevelKey)
 	if len(v) == 0 {
-		v = log.InfoLevel.String()
+		v = log.WarnLevel.String()
 	}
 	err = log.SetLogLevel(v)
 	if err != nil {
