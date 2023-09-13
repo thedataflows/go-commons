@@ -24,7 +24,9 @@ type Options struct {
 	ConfigType      string
 	ConfigName      string
 	UserConfigPaths []string
+	LogLevel        string
 	LogLevelKey     string
+	LogFormat       string
 	LogFormatKey    string
 	Flags           *pflag.FlagSet
 }
@@ -88,14 +90,16 @@ func NewOptions(options ...Option) (*Options, error) {
 	opts.LogFormatKey = defaults.LogFormatKey
 
 	opts.Flags = pflag.NewFlagSet("root", pflag.ExitOnError)
-	opts.Flags.String(
+	opts.Flags.StringVar(
+		&opts.LogLevel,
 		opts.LogLevelKey,
-		log.InfoLevel.String(),
+		log.WarnLevel.String(),
 		fmt.Sprintf("Set log level to one of: '%s'",
 			strings.Join(log.AllLevelsValues, ", "),
 		),
 	)
-	opts.Flags.String(
+	opts.Flags.StringVar(
+		&opts.LogFormat,
 		opts.LogFormatKey,
 		log.LogFormats[0],
 		fmt.Sprintf("Set log format to one of: '%s'", strings.Join(log.LogFormats, ", ")),
@@ -182,7 +186,7 @@ func (opts *Options) setLogging() error {
 	// Set log format
 	v := viper.GetString(opts.LogFormatKey)
 	if len(v) == 0 {
-		v = log.LogFormats[0]
+		v = opts.LogFormat
 	}
 	err := log.SetLogFormat(v)
 	if err != nil {
@@ -192,32 +196,20 @@ func (opts *Options) setLogging() error {
 	// Set log level
 	v = viper.GetString(opts.LogLevelKey)
 	if len(v) == 0 {
-		v = log.WarnLevel.String()
+		v = opts.LogLevel
 	}
 	err = log.SetLogLevel(v)
 	if err != nil {
 		return err
 	}
-	// Enable viper logging
+	// Enable viper logging but only for debug and trace
 	switch log.Logger.GetLevel() {
-	case log.InfoLevel:
-		jww.SetLogThreshold(jww.LevelInfo)
-		jww.SetStdoutThreshold(jww.LevelInfo)
-	case log.ErrorLevel:
-		jww.SetLogThreshold(jww.LevelError)
-		jww.SetStdoutThreshold(jww.LevelError)
-	case log.FatalLevel:
-		jww.SetLogThreshold(jww.LevelFatal)
-		jww.SetStdoutThreshold(jww.LevelFatal)
-	case log.DebugLevel:
-		jww.SetLogThreshold(jww.LevelDebug)
-		jww.SetStdoutThreshold(jww.LevelDebug)
 	case log.TraceLevel:
 		jww.SetLogThreshold(jww.LevelTrace)
 		jww.SetStdoutThreshold(jww.LevelTrace)
-	default:
-		jww.SetLogThreshold(jww.LevelWarn)
-		jww.SetStdoutThreshold(jww.LevelWarn)
+	case log.DebugLevel:
+		jww.SetLogThreshold(jww.LevelDebug)
+		jww.SetStdoutThreshold(jww.LevelDebug)
 	}
 
 	return nil
