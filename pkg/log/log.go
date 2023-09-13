@@ -39,34 +39,34 @@ var (
 )
 
 type CustomLogger struct {
-	logger *zerolog.Logger
+	zerolog.Logger
 }
 
 func (l *CustomLogger) Tracef(format string, args ...interface{}) {
-	l.logger.Trace().Msgf(format, args...)
+	l.Trace().Msgf(format, args...)
 }
 func (l *CustomLogger) Debugf(format string, args ...interface{}) {
-	l.logger.Debug().Msgf(format, args...)
+	l.Debug().Msgf(format, args...)
 }
 
 func (l *CustomLogger) Errorf(format string, args ...interface{}) {
-	l.logger.Error().Msgf(format, args...)
+	l.Error().Msgf(format, args...)
 }
 
 func (l *CustomLogger) Warnf(format string, args ...interface{}) {
-	l.logger.Warn().Msgf(format, args...)
+	l.Warn().Msgf(format, args...)
 }
 
 func (l *CustomLogger) Infof(format string, args ...interface{}) {
-	l.logger.Info().Msgf(format, args...)
+	l.Info().Msgf(format, args...)
 }
 
 func (l *CustomLogger) SetLogger(logger zerolog.Logger) {
-	l.logger = &logger
+	l.Logger = logger
 }
 
 func (l *CustomLogger) GetLogger() *zerolog.Logger {
-	return l.logger
+	return &l.Logger
 }
 
 func GetLevel() zerolog.Level {
@@ -78,12 +78,11 @@ func NewDefaultLogger() CustomLogger {
 		Out:        PreferredWriter(),
 		TimeFormat: time.RFC3339,
 	}
-	logger := zerolog.New(output).
-		With().
-		Timestamp().
-		Logger()
 	return CustomLogger{
-		logger: &logger,
+		zerolog.New(output).
+			With().
+			Timestamp().
+			Logger(),
 	}
 }
 
@@ -105,9 +104,7 @@ func SetLogFormat(format string) error {
 	// This is the current default
 	// case "console":
 	case "json":
-		Log.SetLogger(
-			Log.GetLogger().Output(PreferredWriter()),
-		)
+		Log.SetLogger(Log.GetLogger().Output(PreferredWriter()))
 	}
 	return nil
 }
