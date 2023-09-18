@@ -146,7 +146,7 @@ func (opts *Options) InitConfig() error {
 	for _, p := range opts.UserConfigPaths {
 		viper.SetConfigName(opts.ConfigName)
 		if !file.IsAccessible(p) {
-			log.Warnf("'%s' is not accessible!", p)
+			log.Debugf("'%s' is not accessible!", p)
 			continue
 		}
 		if file.IsFile(p) {
